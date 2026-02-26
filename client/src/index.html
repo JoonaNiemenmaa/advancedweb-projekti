@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="en">
+	<head>
+		<meta charset="utf-8" />
+		<meta name="viewport" content="width=device-width, initial-scale=1" />
+		<title>Advanced Web Project</title>
+		<script type="module" src="./js/index.js"></script>
+	</head>
+	<body>
+		<div class="container">
+			<div class="row justify-content-center">
+				<div class="col-10 col-lg-6">
+					<h1 class="m-4">My drive</h1>
+					<form id="createDocument" class="m-4">
+						<div class="row">
+							<div class="col-8">
+								<div class="form-floating">
+									<!-- placeholder has to be nonempty for floating labels to work in bootstrap -->
+									<input
+										id="documentName"
+										type="text"
+										placeholder="funny and awesome document name"
+										class="form-control"
+									/>
+									<label for="documentName" class="form-label"
+										>Document name</label
+									>
+								</div>
+							</div>
+
+							<button class="col-4 btn btn-primary">
+								Create Document
+							</button>
+						</div>
+					</form>
+
+					<table class="table m-4">
+						<thead>
+							<tr>
+								<th scope="col">Owner</th>
+								<th scope="col">Name</th>
+							</tr>
+							<tbody id="tableBody">
+
+							</tbody>
+						</thead>
+					</table>
+				</div>
+			</div>
+		</div>
+	</body>
+</html>
