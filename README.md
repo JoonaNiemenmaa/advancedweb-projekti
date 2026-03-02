@@ -52,6 +52,20 @@ $ npm install
 $ npm run server:start
 ~~~
 
+Now the frontend will be running on port 8080 and the backend will be running on port 3000
+
+## Usage Instructions
+
+This part describes how the app can be used.
+
+The app consists of multiple pages which can be navigated via the navbar at the top of the page.
+
+'Documents' is the part of the app that allows you to manage your own drive. It includes a form for creating new documents, a table that lists all documents you have access to and it allows you rename or give others permissions to or access those documents. Renaming and permission management is done via the modal revealed by the 'settings'-button.
+
+'Login' is for logging into the service.
+
+'Register' is for registering new accounts into the service.
+
 ## Points
 
 Here are the points the project fulfills
