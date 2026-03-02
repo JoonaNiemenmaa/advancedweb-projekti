@@ -13,7 +13,7 @@ const newDocumentName = document.getElementById("newDocumentName");
 const addPermissionsForm = document.getElementById("addPermissionsForm");
 const givePermissionInput = document.getElementById("givePermissionInput");
 
-function deleteDocument(textDocument) {
+function deleteDocument(tr, textDocument) {
 	return async (event) => {
 		const url = `http://localhost:3000/api/document/${textDocument.id}`;
 		const options = {
@@ -36,7 +36,7 @@ function deleteDocument(textDocument) {
 	};
 }
 
-function createButtons(textDocument) {
+function createButtons(tr, textDocument) {
 	const editBtn = document.createElement("button");
 	editBtn.classList.add("btn", "btn-outline-primary", "p-1", "mx-1");
 	editBtn.innerText = "edit";
@@ -49,7 +49,7 @@ function createButtons(textDocument) {
 	deleteBtn.classList.add("btn", "btn-outline-danger", "p-1", "mx-1");
 	deleteBtn.innerText = "delete";
 
-	deleteBtn.addEventListener("click", deleteDocument(textDocument));
+	deleteBtn.addEventListener("click", deleteDocument(tr, textDocument));
 
 	const settingsBtn = document.createElement("button");
 	settingsBtn.classList.add("btn", "btn-outline-primary", "p-1", "mx-1");
@@ -161,9 +161,9 @@ function addDocumentRow(textDocument) {
 	const documentName = document.createElement("td");
 	documentName.innerText = textDocument.name;
 
-	const buttons = createButtons(textDocument);
-
 	const tr = document.createElement("tr");
+
+	const buttons = createButtons(tr, textDocument);
 
 	tr.appendChild(owner);
 	tr.appendChild(documentName);

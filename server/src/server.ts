@@ -6,7 +6,6 @@ import service from "./service";
 
 const app = express();
 
-//app.use(express.static("public"));
 app.use(auth);
 app.use(service);
 

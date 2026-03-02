@@ -13,6 +13,7 @@ import {
 	addPermissionsSQL,
 	removePermissionsSQL,
 	renameDocumentSQL,
+	updateLockHolderSQL,
 } from "./database";
 import { body, validationResult } from "express-validator";
 
@@ -159,6 +160,12 @@ service.put(
 				});
 			}
 
+			if (document.lockholder !== username) {
+				return response.status(401).send({
+					message: "unauthorized",
+				});
+			}
+
 			await saveDocumentSQL(uuid, content);
 
 			return response.status(200).send({
@@ -182,7 +189,6 @@ service.delete(
 		max: MAX_NAME_LENGTH,
 	}),
 	async (request: Request, response: Response) => {
-		console.log("REMOVE LE PERMISSION");
 		const result = validationResult(request);
 		if (!result.isEmpty()) {
 			return response.status(400).send({
@@ -190,7 +196,6 @@ service.delete(
 				errors: result.array(),
 			});
 		}
-		console.log("REMOVE LE PERMISSION");
 
 		if (!request.body.payload) {
 			return response.status(500).send({
@@ -198,12 +203,8 @@ service.delete(
 			});
 		}
 
-		console.log("REMOVE LE PERMISSION");
-
 		const owner: string = request.body.payload.username;
 		const uuid: string = request.body.uuid;
-		console.log(request.body.uuid);
-		console.log(uuid);
 		const username: string = request.body.username;
 
 		if (owner === username) {
@@ -350,6 +351,97 @@ service.get(
 		try {
 			const documents = await getAllDocumentsSQL(username);
 			return response.status(200).send(documents);
+		} catch (error) {
+			console.error(error);
+			return response.status(500).send({
+				message: "internal server error",
+			});
+		}
+	},
+);
+
+service.post(
+	"/api/document/getlock/",
+	validateToken(),
+	body("documentId").notEmpty().isUUID(),
+	async (request: Request, response: Response) => {
+		const result = validationResult(request);
+		if (!result.isEmpty()) {
+			return response.status(400).send({
+				message: "validation error",
+				errors: result.array(),
+			});
+		}
+
+		if (!request.body.payload) {
+			return response.status(500).send({
+				message: "internal server error",
+			});
+		}
+
+		const username = request.body.payload.username;
+		const documentId = request.body.documentId;
+
+		try {
+			const document = (await getDocumentSQL(documentId))[0];
+
+			if (document.lockholder !== null) {
+				return response.status(401).send({
+					message: "lock held by someone else",
+				});
+			}
+
+			await updateLockHolderSQL(documentId, username);
+
+			return response.status(200).send({
+				message: "success",
+			});
+		} catch (error) {
+			console.error(error);
+			return response.status(500).send({
+				message: "internal server error",
+			});
+		}
+	},
+);
+
+service.post(
+	"/api/document/freelock/",
+	validateToken(),
+	body("documentId").notEmpty().isUUID(),
+	async (request: Request, response: Response) => {
+		console.log("freeing lock");
+		const result = validationResult(request);
+		if (!result.isEmpty()) {
+			return response.status(400).send({
+				message: "validation error",
+				errors: result.array(),
+			});
+		}
+
+		if (!request.body.payload) {
+			return response.status(500).send({
+				message: "internal server error",
+			});
+		}
+
+		const username = request.body.payload.username;
+		const documentId = request.body.documentId;
+
+		try {
+			const document = (await getDocumentSQL(documentId))[0];
+
+			if (document.lockholder !== username) {
+				return response.status(401).send({
+					message: "lock held by someone else",
+				});
+			}
+
+			await updateLockHolderSQL(documentId, null);
+
+			return response.status(200).send({
+				message: "success",
+			});
 		} catch (error) {
 			console.error(error);
 			return response.status(500).send({

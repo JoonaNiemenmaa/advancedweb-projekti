@@ -39,7 +39,7 @@ export interface IDocument {
 	owner: string;
 	name: string;
 	content: IContent;
-	lockHolder: string | null;
+	lockholder: string | null;
 }
 
 export async function getDocumentSQL(uuid: string) {
@@ -88,4 +88,11 @@ export async function addPermissionsSQL(uuid: string, username: string) {
 
 export async function removePermissionsSQL(uuid: string, username: string) {
 	return await sql`DELETE FROM permissions WHERE document = ${uuid} AND username = ${username}`;
+}
+
+export async function updateLockHolderSQL(
+	documentId: string,
+	lockHolder: string | null,
+) {
+	await sql`UPDATE documents SET lockHolder = ${lockHolder} WHERE id = ${documentId}`;
 }
