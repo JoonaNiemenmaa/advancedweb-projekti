@@ -12,8 +12,8 @@ auth.use(express.json());
 
 const saltRounds = 10;
 
-const MIN_NAME_LENGTH = 3;
-const MAX_NAME_LENGTH = 64;
+export const MIN_NAME_LENGTH = 3;
+export const MAX_NAME_LENGTH = 64;
 
 const MIN_PASSWORD_LENGTH = 8;
 const MAX_PASSWORD_LENGTH = 64;
@@ -33,7 +33,7 @@ auth.post(
 
 		if (!results.isEmpty()) {
 			return response.status(400).send({
-				message: "bad request",
+				message: "validation error",
 				errors: results.array(),
 			});
 		}
@@ -78,6 +78,7 @@ auth.post(
 
 		if (!results.isEmpty()) {
 			return response.status(400).send({
+				message: "validation error",
 				errors: results.array(),
 			});
 		}
@@ -92,7 +93,7 @@ auth.post(
 
 			if (!(await bcrypt.compare(password, sqlResponse.password))) {
 				return response.status(401).send({
-					success: "unauthorized",
+					message: "unauthorized",
 				});
 			}
 
@@ -109,50 +110,52 @@ auth.post(
 		} catch (error) {
 			console.error(error);
 			return response.status(500).send({
+				message: "internal server error",
 				errors: [],
 			});
 		}
 	},
 );
 
-export function validateToken(
-	request: Request,
-	response: Response,
-	next: NextFunction,
-) {
-	if (!request.headers.authorization) {
-		return response.status(401).send({
-			message: "missing token",
-		});
-	}
+export function validateToken(noEnforcement: boolean = false) {
+	return (request: Request, response: Response, next: NextFunction) => {
+		if (!request.headers.authorization) {
+			if (noEnforcement) {
+				next();
+			}
+			return response.status(400).send({
+				message: "missing token",
+			});
+		}
 
-	const authorization = request.headers.authorization;
+		const authorization = request.headers.authorization;
 
-	const BEARER_LENGTH = "Bearer".length;
-	const schema = authorization.substring(0, BEARER_LENGTH);
+		const BEARER_LENGTH = "Bearer".length;
+		const schema = authorization.substring(0, BEARER_LENGTH);
 
-	if (schema !== "Bearer") {
-		return response.status(400).send({
-			message: "invalid schema",
-		});
-	}
+		if (schema !== "Bearer") {
+			return response.status(400).send({
+				message: "invalid schema",
+			});
+		}
 
-	const token = authorization.substring(BEARER_LENGTH + 1);
+		const token = authorization.substring(BEARER_LENGTH + 1);
 
-	if (!request.body) {
-		request.body = {};
-	}
+		if (!request.body) {
+			request.body = {};
+		}
 
-	try {
-		request.body.payload = jwt.verify(token, config.secret) as IPayload;
-	} catch (error) {
-		console.error(error);
-		return response.status(400).send({
-			message: "unauthorized",
-		});
-	}
+		try {
+			request.body.payload = jwt.verify(token, config.secret) as IPayload;
+		} catch (error) {
+			console.error(error);
+			return response.status(401).send({
+				message: "unauthorized",
+			});
+		}
 
-	next();
+		next();
+	};
 }
 
 export default auth;

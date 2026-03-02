@@ -1,4 +1,5 @@
 import "../scss/styles.scss";
+import * as bootstrap from "bootstrap";
 
 const loginForm = document.getElementById("loginForm");
 
@@ -38,7 +39,7 @@ loginForm.addEventListener("submit", async (event) => {
 			sessionStorage.setItem("username", json.username);
 			sessionStorage.setItem("token", json.token);
 
-			window.location.replace("/");
+			window.location.replace("/index");
 		}
 	} catch (error) {
 		console.error(error);

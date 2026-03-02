@@ -34,19 +34,23 @@ export interface IContent {
 	version: string;
 }
 
-interface IDocument {
+export interface IDocument {
 	documentId: string;
 	owner: string;
 	name: string;
 	content: IContent;
+	lockHolder: string | null;
 }
 
 export async function getDocumentSQL(uuid: string) {
+	console.log(uuid);
 	return await sql<IDocument[]>`SELECT * FROM documents WHERE id=${uuid}`;
 }
 
-export async function getOwnedDocumentsSQL(owner: string) {
-	return await sql<IDocument[]>`SELECT * FROM documents WHERE owner=${owner}`;
+export async function getAllDocumentsSQL(username: string) {
+	return await sql<
+		IDocument[]
+	>`SELECT id, owner, name, content, lockHolder FROM documents LEFT OUTER JOIN permissions ON id = document WHERE (owner = ${username} OR username = ${username})`;
 }
 
 export async function deleteDocumentSQL(uuid: string) {
@@ -59,4 +63,29 @@ export async function createDocumentSQL(owner: string, name: string) {
 
 export async function saveDocumentSQL(uuid: string, content: IContent) {
 	return await sql`UPDATE documents SET content=${JSON.stringify(content)} WHERE id=${uuid}`;
+}
+
+export async function renameDocumentSQL(
+	documentId: string,
+	newDocumentName: string,
+) {
+	return await sql`UPDATE documents SET name=${newDocumentName} WHERE id=${documentId}`;
+}
+
+interface IPermission {
+	username: string;
+}
+
+export async function getUsersWithPermissionSQL(uuid: string) {
+	return await sql<
+		IPermission[]
+	>`SELECT username FROM permissions WHERE document=${uuid}`;
+}
+
+export async function addPermissionsSQL(uuid: string, username: string) {
+	return await sql`INSERT INTO permissions VALUES (${username}, ${uuid})`;
+}
+
+export async function removePermissionsSQL(uuid: string, username: string) {
+	return await sql`DELETE FROM permissions WHERE document = ${uuid} AND username = ${username}`;
 }

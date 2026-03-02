@@ -1,27 +1,32 @@
 import { Router, Request, Response } from "express";
-import { validateToken } from "./auth";
+import { MAX_NAME_LENGTH, MIN_NAME_LENGTH, validateToken } from "./auth";
 import {
 	IContent,
+	IDocument,
 	createDocumentSQL,
 	getUserSQL,
 	getDocumentSQL,
 	deleteDocumentSQL,
 	saveDocumentSQL,
-	getOwnedDocumentsSQL,
+	getAllDocumentsSQL,
+	getUsersWithPermissionSQL,
+	addPermissionsSQL,
+	removePermissionsSQL,
+	renameDocumentSQL,
 } from "./database";
 import { body, validationResult } from "express-validator";
 
 const service = Router();
 
-const MIN_NAME_LENGTH = 1;
-const MAX_NAME_LENGTH = 255;
+const MIN_DOCUMENT_NAME_LENGTH = 1;
+const MAX_DOCUMENT_NAME_LENGTH = 255;
 
 service.post(
 	"/api/document",
-	validateToken,
+	validateToken(),
 	body("name").notEmpty().isString().isLength({
-		min: MIN_NAME_LENGTH,
-		max: MAX_NAME_LENGTH,
+		min: MIN_DOCUMENT_NAME_LENGTH,
+		max: MAX_DOCUMENT_NAME_LENGTH,
 	}),
 	async (request: Request, response: Response) => {
 		const result = validationResult(request);
@@ -64,10 +69,14 @@ service.post(
 	},
 );
 
-service.delete(
-	"/api/document",
-	validateToken,
-	body("uuid").notEmpty().isUUID(),
+service.put(
+	"/api/document/rename",
+	validateToken(),
+	body("documentId").notEmpty().isUUID(),
+	body("newDocumentName").notEmpty().isString().isLength({
+		min: MIN_DOCUMENT_NAME_LENGTH,
+		max: MAX_DOCUMENT_NAME_LENGTH,
+	}),
 	async (request: Request, response: Response) => {
 		const result = validationResult(request);
 		if (!result.isEmpty()) {
@@ -83,22 +92,23 @@ service.delete(
 			});
 		}
 
-		const username = request.body.payload.username;
-		const uuid = request.body.uuid;
+		const documentId = request.body.documentId;
+		const newDocumentName = request.body.newDocumentName;
+		const requester = request.body.payload.username;
 
 		try {
-			const document = (await getDocumentSQL(uuid))[0];
+			const document = (await getDocumentSQL(documentId))[0];
 
-			if (document.owner !== username) {
+			if (document.owner !== requester) {
 				return response.status(401).send({
 					message: "unauthorized",
 				});
 			}
 
-			await deleteDocumentSQL(uuid);
+			await renameDocumentSQL(documentId, newDocumentName);
 
 			return response.status(200).send({
-				message: `document '${document.name}' deleted successfully`,
+				message: `success`,
 			});
 		} catch (error) {
 			console.error(error);
@@ -110,18 +120,10 @@ service.delete(
 );
 
 service.put(
-	"/api/document/rename",
-	validateToken,
-	(request: Request, response: Response) => {
-		response.send("HELLO");
-	},
-);
-
-service.put(
 	"/api/document/save",
-	validateToken,
+	validateToken(),
 	body("uuid").notEmpty().isUUID(),
-	body("content").notEmpty().isJSON(),
+	body("content").notEmpty(),
 	async (request: Request, response: Response) => {
 		const result = validationResult(request);
 		if (!result.isEmpty()) {
@@ -144,7 +146,14 @@ service.put(
 		try {
 			const document = (await getDocumentSQL(uuid))[0];
 
-			if (document.owner !== username) {
+			const permissions = (await getUsersWithPermissionSQL(uuid)).map(
+				(entry) => entry.username,
+			);
+
+			if (
+				document.owner !== username &&
+				!permissions.includes(username)
+			) {
 				return response.status(401).send({
 					message: "unauthorized",
 				});
@@ -164,9 +173,171 @@ service.put(
 	},
 );
 
+service.delete(
+	"/api/document/permission",
+	validateToken(),
+	body("uuid").notEmpty().isUUID(),
+	body("username").notEmpty().isString().isLength({
+		min: MIN_NAME_LENGTH,
+		max: MAX_NAME_LENGTH,
+	}),
+	async (request: Request, response: Response) => {
+		console.log("REMOVE LE PERMISSION");
+		const result = validationResult(request);
+		if (!result.isEmpty()) {
+			return response.status(400).send({
+				message: "validation error",
+				errors: result.array(),
+			});
+		}
+		console.log("REMOVE LE PERMISSION");
+
+		if (!request.body.payload) {
+			return response.status(500).send({
+				message: "internal server error",
+			});
+		}
+
+		console.log("REMOVE LE PERMISSION");
+
+		const owner: string = request.body.payload.username;
+		const uuid: string = request.body.uuid;
+		console.log(request.body.uuid);
+		console.log(uuid);
+		const username: string = request.body.username;
+
+		if (owner === username) {
+			return response.status(400).send({
+				message: "bad request",
+			});
+		}
+
+		try {
+			const document = (await getDocumentSQL(uuid))[0];
+
+			if (document.owner !== owner) {
+				return response.status(401).send({
+					message: "unauthorized",
+				});
+			}
+
+			await removePermissionsSQL(uuid, username);
+
+			return response.status(200).send({
+				message: "success",
+			});
+		} catch (error) {
+			console.log(error);
+			return response.status(500).send({
+				message: "internal server error",
+			});
+		}
+	},
+);
+
+/* This delete path is unused. Ran out of time. Sadness */
+/* It was for removing permissions to a document from another user */
+service.delete<{ uuid: string }>(
+	"/api/document/:uuid",
+	validateToken(),
+	async (request: Request<{ uuid: string }>, response: Response) => {
+		if (!request.body.payload) {
+			return response.status(500).send({
+				message: "internal server error",
+			});
+		}
+
+		const username = request.body.payload.username;
+		const uuid = request.params.uuid;
+
+		try {
+			const document = (await getDocumentSQL(uuid))[0];
+
+			if (!document) {
+				return response.status(404).send({
+					message: "document not found",
+				});
+			}
+
+			if (document.owner !== username) {
+				return response.status(401).send({
+					message: "unauthorized",
+				});
+			}
+
+			await deleteDocumentSQL(uuid);
+
+			return response.status(200).send({
+				message: `document '${document.name}' deleted successfully`,
+			});
+		} catch (error) {
+			console.error(error);
+			return response.status(500).send({
+				message: "internal server error",
+			});
+		}
+	},
+);
+
+service.post(
+	"/api/document/permission",
+	validateToken(),
+	body("uuid").notEmpty().isUUID(),
+	body("username").notEmpty().isString().isLength({
+		min: MIN_NAME_LENGTH,
+		max: MAX_NAME_LENGTH,
+	}),
+	async (request: Request, response: Response) => {
+		const result = validationResult(request);
+		if (!result.isEmpty()) {
+			return response.status(400).send({
+				message: "validation error",
+				errors: result.array(),
+			});
+		}
+
+		if (!request.body.payload) {
+			return response.status(500).send({
+				message: "internal server error",
+			});
+		}
+
+		const owner: string = request.body.payload.username;
+		const uuid: string = request.body.uuid;
+		const username: string = request.body.username;
+
+		if (owner === username) {
+			return response.status(400).send({
+				message: "bad request",
+			});
+		}
+
+		try {
+			const document = (await getDocumentSQL(uuid))[0];
+
+			if (document.owner !== owner) {
+				return response.status(401).send({
+					message: "unauthorized",
+				});
+			}
+
+			await addPermissionsSQL(uuid, username);
+
+			return response.status(200).send({
+				message: "success",
+			});
+		} catch (error) {
+			console.log(error);
+			return response.status(500).send({
+				message: "internal server error",
+			});
+		}
+	},
+);
+
 service.get(
 	"/api/document/",
-	validateToken,
+	validateToken(),
 	async (request: Request, response: Response) => {
 		if (!request.body.payload) {
 			return response.status(500).send({
@@ -177,7 +348,7 @@ service.get(
 		const username: string = request.body.payload.username;
 
 		try {
-			const documents = await getOwnedDocumentsSQL(username);
+			const documents = await getAllDocumentsSQL(username);
 			return response.status(200).send(documents);
 		} catch (error) {
 			console.error(error);
@@ -188,34 +359,23 @@ service.get(
 	},
 );
 
-interface IParams {
-	uuid: string;
-}
-
 service.get<{ uuid: string }>(
 	"/api/document/:uuid",
-	validateToken,
-	async (request: Request<IParams>, response: Response) => {
-		if (!request.body.payload) {
-			return response.status(500).send({
-				message: "internal server error",
-			});
-		}
-
-		const username: string = request.body.payload.username;
+	async (request: Request<{ uuid: string }>, response: Response) => {
 		const uuid: string = request.params.uuid;
 
 		try {
 			const document = (await getDocumentSQL(uuid))[0];
+			const permissions = (await getUsersWithPermissionSQL(uuid)).map(
+				(entry) => entry.username,
+			);
 
-			if (document.owner !== username) {
-				return response.status(401).send({
-					message: "forbidden",
-				});
-			}
-
-			return response.status(200).send(document);
+			return response.status(200).send({
+				document: document,
+				permissions: permissions,
+			});
 		} catch (error) {
+			console.error(error);
 			return response.status(500).send({
 				message: "internal server error",
 			});
