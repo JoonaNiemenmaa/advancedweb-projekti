@@ -77,4 +77,4 @@ In total 27p
 
 ## Declaration of AI Usage
 
-Artifial Intelligence tools were not used for this project
+Artificial Intelligence tools were not used for this project
