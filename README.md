@@ -74,3 +74,7 @@ Here are the points the project fulfills
 - The document editor includes wysiwyg editor of some sort (e.g. https://quilljs.com/, https://editorjs.io/, https://draftjs.org/) 2p
 
 In total 27p
+
+## Declaration of AI Usage
+
+Artifial Intelligence tools were not used for this project
